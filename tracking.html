@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tracking Pengiriman — SITTA UT</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="halaman-dalam">
+
+  <div id="app-tracking">
+
+  <header class="topbar">
+    <div class="topbar-in">
+      <a class="brand" href="index.html">SITTA UT</a>
+      <nav class="menu-nav">
+        <a href="index.html">Beranda</a>
+        <a href="stok.html">Informasi Bahan Ajar</a>
+        <a href="tracking.html" class="aktif">Tracking Pengiriman</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section>
+      <h1>Tracking Pengiriman</h1>
+      <p>Buat delivery order bahan ajar baru, atau masukkan nomor delivery order
+         untuk melihat status pengirimannya.</p>
+      <p><small>Contoh nomor DO: <code>DO2025-0001</code>.
+         Format nomor DO otomatis: <code>DO[Tahun]-[Urut]</code></small></p>
+    </section>
+
+    <!-- bagian form untuk membuat delivery order baru -->
+    <section class="card">
+      <h2>Buat Delivery Order Baru</h2>
+
+      <p v-show="pesanDO" :class="pesanDOSukses ? 'pesan-hijau' : 'pesan-merah'" class="kotak-pesan">
+        {{ pesanDO }}
+      </p>
+
+      <form @submit.prevent="simpanDO" class="form-grid">
+        <div>
+          <label for="nomorBaru">Nomor DO (Otomatis)</label>
+          <input type="text" id="nomorBaru" :value="nomorBaru" readonly class="input-baca">
+        </div>
+        <div>
+          <label for="nim">NIM</label>
+          <input type="text" id="nim" v-model.trim="formDO.nim" placeholder="123456789">
+        </div>
+        <div>
+          <label for="namaDO">Nama Mahasiswa</label>
+          <input type="text" id="namaDO" v-model.trim="formDO.nama" placeholder="Nama lengkap">
+        </div>
+        <div>
+          <label for="ekspedisi">Ekspedisi</label>
+          <select id="ekspedisi" v-model="formDO.ekspedisi">
+            <option value="" disabled>— Pilih ekspedisi —</option>
+            <option v-for="e in pengirimanList" :key="e.kode" :value="e.kode">
+              {{ e.nama }}
+            </option>
+          </select>
+        </div>
+        <div class="kolom-penuh">
+          <label for="paket">Paket Bahan Ajar</label>
+          <!-- pilihannya menampilkan kode sekaligus nama paket -->
+          <select id="paket" v-model="formDO.kodePaket">
+            <option value="" disabled>— Pilih paket —</option>
+            <option v-for="p in paketList" :key="p.kode" :value="p.kode">
+              {{ p.kode }} — {{ p.nama }}
+            </option>
+          </select>
+
+          <!-- detail isi paket baru muncul setelah paketnya dipilih -->
+          <div v-if="paketTerpilih" class="detail-paket">
+            <p class="detail-paket-judul">Isi {{ paketTerpilih.kode }} ({{ paketTerpilih.nama }}):</p>
+            <ul>
+              <li v-for="kode in paketTerpilih.isi" :key="kode" v-text="kode"></li>
+            </ul>
+            <p>Harga paket: <strong>{{ formatRupiah(paketTerpilih.harga) }}</strong></p>
+          </div>
+        </div>
+        <div>
+          <label for="tanggalKirim">Tanggal Kirim</label>
+          <input type="date" id="tanggalKirim" v-model="formDO.tanggalKirim">
+        </div>
+        <div>
+          <label for="totalBaru">Total Harga (Otomatis)</label>
+          <input type="text" id="totalBaru" :value="formatRupiah(totalBaru)" readonly class="input-baca">
+        </div>
+        <div class="kolom-penuh form-aksi">
+          <button type="submit" class="btn">Simpan</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- bagian form untuk memasukkan nomor delivery order yang mau dicari -->
+    <section class="card">
+      <h2>Cari Delivery Order</h2>
+      <form @submit.prevent="cari" class="form-cari">
+        <label for="nomorDO">Nomor Delivery Order</label>
+        <input type="text" id="nomorDO" v-model.trim="nomorDO" placeholder="contoh: DO2025-0001">
+        <button type="submit" class="btn">Cari</button>
+      </form>
+
+      <!-- nomor yang tidak ketemu ditampilkan tebal lewat v-html -->
+      <p v-if="pesanError" class="kotak-pesan pesan-merah" v-html="pesanError"></p>
+    </section>
+
+    <!-- bagian hasil pencarian, tampil hanya bila data ditemukan -->
+    <section v-if="hasil" class="card kartu-hasil">
+      <h2>Nomor DO: <span v-text="hasil.nomorDO"></span></h2>
+      <p><strong>NIM:</strong> {{ hasil.nim }}</p>
+      <p><strong>Nama Mahasiswa:</strong> {{ hasil.nama }}</p>
+
+      <p>
+        <strong>Status:</strong>
+        <span v-if="hasil.status === 'Dikirim'" class="badge badge-hijau">{{ hasil.status }}</span>
+        <span v-else-if="hasil.status === 'Dalam Perjalanan'" class="badge badge-kuning">{{ hasil.status }}</span>
+        <span v-else class="badge badge-abu">{{ hasil.status }}</span>
+      </p>
+
+      <p><strong>Ekspedisi:</strong> {{ namaEkspedisi(hasil.ekspedisi) }}</p>
+      <p><strong>Tanggal Kirim:</strong> {{ hasil.tanggalKirim }}</p>
+      <p><strong>Paket:</strong> {{ hasil.paket }} — {{ namaPaket(hasil.paket) }}</p>
+      <p><strong>Total Pembayaran:</strong> {{ formatRupiah(hasil.total) }}</p>
+
+      <!-- lebar bar diatur lewat vue sesuai computed statusPersen -->
+      <h3>Progress Pengiriman ({{ statusPersen }}%)</h3>
+      <div class="progress">
+        <div class="progress-bar" :style="{ width: statusPersen + '%' }"></div>
+      </div>
+
+      <h3>Riwayat Perjalanan</h3>
+      <ol class="timeline">
+        <li v-for="log in daftarPerjalanan" :key="log.waktu">
+          <span class="waktu">{{ log.waktu }}</span>
+          {{ log.keterangan }}
+        </li>
+      </ol>
+    </section>
+
+    <p v-else class="kosong">
+      Belum ada hasil pencarian. Masukkan nomor delivery order di atas lalu tekan Cari.
+    </p>
+  </main>
+
+  <footer class="footer">
+    <p>SITTA — Universitas Terbuka</p>
+  </footer>
+
+  </div>
+
+  <script src="js/vue.global.js"></script>
+  <script src="js/dataBahanAjar.js"></script>
+  <script src="js/tracking-app.js"></script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informasi Stok Bahan Ajar — SITTA UT</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="halaman-dalam">
+
+  <div id="app-stok">
+
+  <header class="topbar">
+    <div class="topbar-in">
+      <a class="brand" href="index.html">SITTA UT</a>
+      <nav class="menu-nav">
+        <a href="index.html">Beranda</a>
+        <a href="stok.html" class="aktif">Informasi Bahan Ajar</a>
+        <a href="tracking.html">Tracking Pengiriman</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section>
+      <h1>Informasi Stok Bahan Ajar</h1>
+      <p>Menampilkan <strong>{{ daftarTersaring.length }}</strong> dari
+         <span v-text="totalJudul"></span> judul, total
+         <span v-text="totalQty"></span> eksemplar,
+         <strong>{{ jumlahReorder }}</strong> di antaranya perlu re-order.
+         Terakhir diperbarui: <em v-text="waktuPembaruan"></em>.</p>
+    </section>
+
+    <!-- bagian tabel stok, isinya di-render lewat v-for dari js/dataBahanAjar.js -->
+    <section class="card">
+      <h2>Tabel Stok Bahan Ajar</h2>
+
+      <!-- panel filter dan sort, semua pilihannya diolah computed daftarTersaring -->
+      <div class="filter-bar">
+        <div>
+          <label for="fUpbjj">UT-Daerah</label>
+          <select id="fUpbjj" v-model="fUpbjj">
+            <option value="">Semua UT-Daerah</option>
+            <option v-for="u in upbjjList" :key="u" :value="u">{{ u }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="fSort">Urutkan</label>
+          <select id="fSort" v-model="sortBy">
+            <option value="">Tanpa urutan</option>
+            <option value="judul">Judul (A-Z)</option>
+            <option value="qty">Jumlah Stok</option>
+            <option value="harga">Harga</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="fReorder">Tampilkan</label>
+          <label class="ceklis-reorder">
+            <input type="checkbox" id="fReorder" v-model="fReorder">
+            Hampir habis dan sudah kosong
+          </label>
+        </div>
+
+        <!-- filter kategori baru muncul setelah UT-Daerah dipilih -->
+        <div v-if="fUpbjj !== ''">
+          <label for="fKategori">Kategori Mata Kuliah</label>
+          <select id="fKategori" v-model="fKategori">
+            <option value="">Semua Kategori</option>
+            <option v-for="k in kategoriList" :key="k" :value="k">{{ k }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label>&nbsp;</label>
+          <button type="button" class="btn btn-kecil" @click="resetFilter">Reset Filter</button>
+        </div>
+      </div>
+
+      <div class="tabel-wrap">
+        <table class="tabel-stok">
+          <thead>
+            <tr>
+              <th>Bahan Ajar</th>
+              <th>Kategori</th>
+              <th>UT-Daerah</th>
+              <th>Lokasi Rak</th>
+              <th>Harga</th>
+              <th>Stok / Safety</th>
+              <th>Status</th>
+              <th>Catatan</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="buku in daftarTersaring" :key="buku.kode">
+              <!-- kode dan judul saya gabung jadi satu sel biar tabelnya muat tanpa scroll samping -->
+              <td>
+                <span class="stok-kode" v-text="buku.kode"></span>
+                <span class="stok-judul">{{ buku.judul }}</span>
+              </td>
+              <td>{{ buku.kategori }}</td>
+              <td>{{ buku.upbjj }}</td>
+              <td>{{ buku.lokasiRak }}</td>
+              <td>{{ formatRupiah(buku.harga) }}</td>
+              <td>
+                <strong v-text="buku.qty"></strong>
+                <span class="stok-safety">/ {{ buku.safety }}</span>
+              </td>
+              <!-- status: merah bila habis, oranye bila di bawah safety, sisanya hijau -->
+              <td>
+                <span v-if="buku.qty === 0" class="badge badge-merah">Kosong</span>
+                <span v-else-if="buku.qty < buku.safety" class="badge badge-kuning">Menipis</span>
+                <span v-else class="badge badge-hijau">Aman</span>
+              </td>
+              <!-- catatan dari data mengandung tag html, jadi dirender pakai v-html -->
+              <td v-html="buku.catatanHTML"></td>
+              <td>
+                <div class="aksi-stok">
+                  <button class="btn-ikon" title="Ubah data" @click="editStok(buku.kode)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                    </svg>
+                  </button>
+                  <button class="btn-ikon btn-ikon-merah" title="Hapus stok" @click="hapusStok(buku.kode)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="daftarTersaring.length === 0">
+              <td colspan="9" class="kosong">Tidak ada stok yang cocok dengan filter.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- bagian form untuk menambah dan mengubah data stok -->
+    <section class="card">
+      <h2>{{ editIndex > -1 ? "Ubah Stok Bahan Ajar" : "Tambah Stok Bahan Ajar Baru" }}</h2>
+
+      <p v-show="pesanStok" :class="pesanSukses ? 'pesan-hijau' : 'pesan-merah'" class="kotak-pesan">
+        {{ pesanStok }}
+      </p>
+
+      <form id="formTambah" @submit.prevent="simpanStok" class="form-grid">
+        <div>
+          <label for="kode">Kode Mata Kuliah</label>
+          <!-- kode dikunci pas mode ubah, biar kuncinya tidak berubah-ubah -->
+          <input type="text" id="kode" v-model.trim="formStok.kode"
+                 placeholder="EKMA4116" :disabled="editIndex > -1">
+        </div>
+        <div>
+          <label for="judul">Nama / Judul Mata Kuliah</label>
+          <input type="text" id="judul" v-model.trim="formStok.judul" placeholder="Pengantar Manajemen">
+        </div>
+        <div>
+          <label for="kategori">Kategori Mata Kuliah</label>
+          <select id="kategori" v-model="formStok.kategori">
+            <option value="" disabled>— Pilih kategori —</option>
+            <option v-for="k in kategoriList" :key="k" :value="k">{{ k }}</option>
+          </select>
+        </div>
+        <div>
+          <label for="upbjj">UT-Daerah (UPBJJ)</label>
+          <select id="upbjj" v-model="formStok.upbjj">
+            <option value="" disabled>— Pilih UT-Daerah —</option>
+            <option v-for="u in upbjjList" :key="u" :value="u">{{ u }}</option>
+          </select>
+        </div>
+        <div>
+          <label for="lokasiRak">Lokasi Rak</label>
+          <input type="text" id="lokasiRak" v-model.trim="formStok.lokasiRak" placeholder="R1-A3">
+        </div>
+        <div>
+          <label for="harga">Harga (Rp)</label>
+          <!-- .number bikin nilainya langsung jadi angka, bukan teks -->
+          <input type="number" id="harga" v-model.number="formStok.harga" min="0" step="500" placeholder="65000">
+        </div>
+        <div>
+          <label for="qty">Jumlah Stok (Qty)</label>
+          <!-- kolom ini dipantau watcher, nilai negatif langsung ditolak -->
+          <input type="number" id="qty" v-model.number="formStok.qty" min="0" placeholder="100">
+        </div>
+        <div>
+          <label for="safety">Safety Stock</label>
+          <input type="number" id="safety" v-model.number="formStok.safety" min="0" placeholder="20">
+        </div>
+        <div class="kolom-penuh">
+          <label for="catatan">Catatan (boleh berisi format sederhana)</label>
+          <input type="text" id="catatan" v-model.trim="formStok.catatanHTML"
+                 placeholder="Contoh: <em>Edisi 2024</em>">
+        </div>
+        <div class="kolom-penuh form-aksi">
+          <button v-if="editIndex > -1" type="button" class="btn btn-kecil"
+                  @click="batalEdit">Batal</button>
+          <button type="submit" class="btn">
+            {{ editIndex > -1 ? "Simpan Perubahan" : "Simpan" }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>SITTA — Universitas Terbuka</p>
+  </footer>
+
+  </div>
+
+  <script src="js/vue.global.js"></script>
+  <script src="js/dataBahanAjar.js"></script>
+  <script src="js/stok-app.js"></script>
+</body>
+</html>

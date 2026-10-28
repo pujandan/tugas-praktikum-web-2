@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beranda — SITTA UT</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="halaman-dalam">
+
+  <div id="app">
+    <header class="topbar">
+      <div class="topbar-in">
+        <a class="brand" href="index.html">SITTA UT</a>
+        <nav class="menu-nav">
+          <a href="index.html" class="aktif">Beranda</a>
+          <a href="stok.html">Informasi Bahan Ajar</a>
+          <a href="tracking.html">Tracking Pengiriman</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h1>{{ sapaan }}, pengguna SITTA.</h1>
+        <p>Aplikasi pemesanan bahan ajar Universitas Terbuka.
+           Silakan pilih menu layanan di bawah ini.</p>
+      </section>
+
+      <nav class="menu-grid">
+        <a v-for="menu in daftarMenu" :key="menu.judul"
+           class="card menu-card" :href="menu.link">
+          <h2>{{ menu.judul }}</h2>
+          <p>{{ menu.keterangan }}</p>
+        </a>
+      </nav>
+    </main>
+
+    <footer class="footer">
+      <p>SITTA — Universitas Terbuka</p>
+    </footer>
+  </div>
+
+  <script src="js/vue.global.js"></script>
+  <script>
+    Vue.createApp({
+      data() {
+        return {
+          // menu di atas di-render pakai v-for
+          daftarMenu: [
+            {
+              judul: "Stok Bahan Ajar",
+              keterangan: "Lihat, cari, filter, urutkan, dan kelola stok bahan ajar.",
+              link: "stok.html"
+            },
+            {
+              judul: "Tracking DO",
+              keterangan: "Buat delivery order baru dan lacak status pengirimannya.",
+              link: "tracking.html"
+            }
+          ]
+        };
+      },
+      computed: {
+        // sapaan mengikuti jam di perangkat pengguna
+        sapaan() {
+          const jam = new Date().getHours();
+          if (jam >= 4 && jam < 11) return "Selamat pagi";
+          if (jam >= 11 && jam < 15) return "Selamat siang";
+          if (jam >= 15 && jam < 19) return "Selamat sore";
+          return "Selamat malam";
+        }
+      }
+    }).mount("#app");
+  </script>
+</body>
+</html>
